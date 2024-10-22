@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Kanban Board</title>
+  <style>
+    /* Basic styling for Kanban board */
+    #kanban-board {
+      display: flex;
+      gap: 20px;
+    }
+
+    .kanban-column {
+      background-color: #f4f4f4;
+      padding: 10px;
+      border-radius: 5px;
+      width: 30%;
+    }
+
+    .ticket-card {
+      background-color: white;
+      padding: 10px;
+      margin-bottom: 10px;
+      border-radius: 5px;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    }
+
+    h3 {
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <!-- Kanban board container -->
+  <div id="kanban-board"></div>
+
+  <script>
+    const apiEndpoint = "https://api.quicksell.co/v1/internal/frontend-assignment";
+
+    // Fetch data from the API
+    fetch(apiEndpoint)
+      .then(response => response.json())
+      .then(data => {
+        const tickets = data.tickets;
+        const users = data.users;
+
+        // Group tickets based on selected option (status, user, or priority)
+        const groupTickets = (tickets, groupingOption) => {
+          const grouped = {};
+
+          tickets.forEach(ticket => {
+            let groupKey;
+            switch (groupingOption) {
+              case 'status':
+                groupKey = ticket.status;
+                break;
+              case 'user':
+                groupKey = users.find(user => user.id === ticket.userId)?.name || 'Unknown User';
+                break;
+              case 'priority':
+                groupKey = ['No priority', 'Low', 'Medium', 'High', 'Urgent'][ticket.priority];
+                break;
+              default:
+                groupKey = 'Ungrouped';
+            }
+
+            if (!grouped[groupKey]) grouped[groupKey] = [];
+            grouped[groupKey].push(ticket);
+          });
+
+          return grouped;
+        };
+
+        // Sort tickets based on selected option (priority or title)
+        const sortTickets = (tickets, sortBy) => {
+          return tickets.sort((a, b) => {
+            if (sortBy === 'priority') return b.priority - a.priority;
+            if (sortBy === 'title') return a.title.localeCompare(b.title);
+          });
+        };
+
+        // Render Kanban board
+        const renderKanbanBoard = (groupedTickets) => {
+          const kanbanBoard = document.getElementById('kanban-board');
+          kanbanBoard.innerHTML = ''; // Clear the board before rendering
+
+          Object.keys(groupedTickets).forEach(group => {
+            const column = document.createElement('div');
+            column.classList.add('kanban-column');
+
+            const heading = document.createElement('h3');
+            heading.textContent = group;
+            column.appendChild(heading);
+
+            groupedTickets[group].forEach(ticket => {
+              const ticketCard = document.createElement('div');
+              ticketCard.classList.add('ticket-card');
+              ticketCard.textContent = ticket.title;
+              column.appendChild(ticketCard);
+            });
+
+            kanbanBoard.appendChild(column);
+          });
+        };
+
+        // Handle grouping changes
+        const handleGroupChange = (newGroup) => {
+          const groupedTickets = groupTickets(tickets, newGroup);
+          renderKanbanBoard(groupedTickets);
+        };
+
+        // Handle sorting changes
+        const handleSortChange = (newSort) => {
+          const sortedTickets = sortTickets(tickets, newSort);
+          const groupedTickets = groupTickets(sortedTickets, 'status'); // Group by status as default
+          renderKanbanBoard(groupedTickets);
+        };
+
+        // Initial rendering by status
+        renderKanbanBoard(groupTickets(tickets, 'status'));
+      })
+      .catch(error => console.error('Error fetching data:', error));
+  </script>
+</body>
+</html>
